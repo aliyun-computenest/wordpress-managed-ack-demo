@@ -120,7 +120,7 @@ Outputs:
         - http://${Namespace}.wordpress.local
         - Namespace:
             Ref: ALIYUN::StackName
-  请配置域名映射到hosts中:
+  HostConfigDesc:
     Label: 请配置域名映射到hosts中
     Value:
       Fn::Sub:
