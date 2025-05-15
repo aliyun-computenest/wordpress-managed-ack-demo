@@ -93,8 +93,6 @@ Service:
           - Stop
           - Restart
   ServiceType: managed
-  IsSupportOperated: true
-  PolicyNames: AliyunComputeNestPolicyForOperation
   ServiceInfo:
     Locale: zh-CN
     ShortDescription: WordPress 容器多租户yaml部署
