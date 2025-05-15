@@ -4,8 +4,12 @@ Service:
   TenantType: SingleTenant
   DeployMetadata:
     ServiceInstanceNameRule:
-      Prefix: wp
+      Prefix: wp-
     SupplierDeployMetadata:
+      HelmChartArtifactRelation:
+        '{{ computenest::helmchart::wordpress }}':
+          ArtifactId: ${Artifact.Artifact_1.ArtifactId}
+          ArtifactVersion: ${Artifact.Artifact_1.ArtifactVersion}
       RoleName: ${RoleName}
       UserType: Aliyun
       SupplierTemplateConfigs:
@@ -56,42 +60,6 @@ Service:
         AllowedRegions:
           - ${RegionId}
         ArchitectureDiagramUrl: 'docs/architecture.png'
-        UpdateInfo:
-          ParametersAllowedToBeModified:
-            - ReplicaCount
-            - Storage
-  OperationMetadata:
-    ModifyParametersConfig:
-      - TemplateName: wordpress
-        Operation:
-          - Name: 更改套餐
-            Description: 更改套餐规格
-            Type: Custom
-            SupportPredefinedParameters: true
-            EnableLogging: false
-          - Name: 扩容磁盘
-            Description: mysql磁盘扩容
-            Type: Upgrade
-            SupportPredefinedParameters: false
-            EnableLogging: false
-            Parameters:
-              - Storage
-          - Name: 更改副本数
-            Description: 更改wordpress副本数
-            Type: Custom
-            SupportPredefinedParameters: false
-            EnableLogging: false
-            Parameters:
-              - ReplicaCount
-    StatusOperationConfigs:
-      - TemplateName: wordpress
-        DeployScene: ACK
-        Parameters:
-          - ReplicaCount
-        SupportOperations:
-          - Start
-          - Stop
-          - Restart
   ServiceType: managed
   ServiceInfo:
     Locale: zh-CN
@@ -100,3 +68,17 @@ Service:
     Name: Wordpress 容器yaml部署
   ShareType: Public
   ApprovalType: Manual
+Artifact:
+  Artifact_1:
+    ArtifactType: HelmChart
+    ArtifactName: HelmChart-Wordpress
+    Description: wordpress HelmChart部署物
+    ArtifactProperty:
+      RepoName: ${HelmChartBuilder.HelmChart_1.RepoName}
+      Tag: ${HelmChartBuilder.HelmChart_1.Tag}
+      RepoType: Public
+HelmChartBuilder:
+  HelmChart_1:
+    HelmChartPath: 'resources/artifact_resources/helm_chart/wordpress-15.4.1.tgz'
+    RepoName: wordpress
+    Tag: 15.4.1

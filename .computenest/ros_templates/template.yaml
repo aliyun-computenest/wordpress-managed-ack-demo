@@ -6,14 +6,14 @@ Parameters:
   Memory:
     Type: String
     AllowedValues:
+      - 512Mi
       - 1Gi
       - 2Gi
-      - 4Gi
   Vcpu:
     Type: String
     AllowedValues:
-      - 1
-      - 2
+      - 300m
+      - 600m
   Storage:
     Type: String
     AllowedValues:
@@ -23,208 +23,92 @@ Parameters:
   ReplicaCount:
     Type: Number
     Default: 1
+  WordpressUsername:
+    Type: String
+    Label:
+      zh-cn: wordpress账户
+      en: wordpress username
+    Default: user
+  WordpressPassword:
+    NoEcho: true
+    Type: String
+    Label:
+      zh-cn: wordpress密码
+      en: wordpress password
 Resources:
-  ClusterApplication:
-    Type: ALIYUN::CS::ClusterApplication
+  ACKAddons:
+    Type: ALIYUN::CS::ClusterAddons
     Properties:
-      WaitUntil:
-        - Kind: Deployment
-          Name: wordpress
-          JsonPath: $.status.readyReplicas
-          Operator: Equals
-          Value:
-            'Fn::Jq':
-              - First
-              - if . == 0 then "null" else . end
-              - Ref: ReplicaCount
-          Timeout: 300
-          ValueType: Json
-          FirstMatch: true
-        - Kind: Deployment
-          Name: wordpress-mysql
-          JsonPath: $.status.readyReplicas
-          Operator: Equals
-          Value: '1'
-          Timeout: 300
-          ValueType: Json
-          FirstMatch: true
-      YamlContent:
-        Fn::Sub:
-          - |
-            apiVersion: v1
-            kind: Secret
-            metadata:
-              name: mysql-pass
-            data:
-              password: bWFyaWFkYg==
-            ---
-            apiVersion: v1
-            kind: Service
-            metadata:
-              name: wordpress-mysql
-              labels:
-                app: wordpress
-            spec:
-              ports:
-                - port: 3306
-              selector:
-                app: wordpress
-                tier: mysql
-              clusterIP: None
-            ---
-            apiVersion: v1
-            kind: PersistentVolumeClaim
-            metadata:
-              name: mysql-pv-claim
-              labels:
-                app: wordpress
-            spec:
-              accessModes:
-                - ReadWriteOnce
-              storageClassName: alicloud-disk-topology-alltype
-              resources:
-                requests:
-                  storage: ${Storage}
-            ---
-            apiVersion: apps/v1
-            kind: Deployment
-            metadata:
-              name: wordpress-mysql
-              labels:
-                app: wordpress
-            spec:
-              selector:
-                matchLabels:
-                  app: wordpress
-                  tier: mysql
-              strategy:
-                type: Recreate
-              template:
-                metadata:
-                  labels:
-                    app: wordpress
-                    tier: mysql
-                spec:
-                  containers:
-                  - image: compute-nest-registry.cn-hangzhou.cr.aliyuncs.com/bestpractice/mysql:1.0
-                    name: mysql
-                    resources:
-                      limits:
-                        cpu: ${Vcpu}
-                        memory: ${Memory}
-                      requests:
-                        cpu: ${Vcpu}
-                        memory: ${Memory}
-                    env:
-                    - name: MYSQL_ROOT_PASSWORD
-                      valueFrom:
-                        secretKeyRef:
-                          name: mysql-pass
-                          key: password
-                    - name: MYSQL_DATABASE
-                      value: wordpress
-                    - name: MYSQL_USER
-                      value: wordpress
-                    - name: MYSQL_PASSWORD
-                      valueFrom:
-                        secretKeyRef:
-                          name: mysql-pass
-                          key: password
-                    ports:
-                    - containerPort: 3306
-                      name: mysql
-                    volumeMounts:
-                    - name: mysql-persistent-storage
-                      mountPath: /var/lib/mysql
-                  volumes:
-                  - name: mysql-persistent-storage
-                    persistentVolumeClaim:
-                      claimName: mysql-pv-claim
-            ---
-            apiVersion: v1
-            kind: Service
-            metadata:
-              name: wordpress
-              labels:
-                app: wordpress
-            spec:
-              ports:
-                - port: 80
-              selector:
-                app: wordpress
-                tier: frontend
-              type: ClusterIP
-            ---
-            apiVersion: apps/v1
-            kind: Deployment
-            metadata:
-              name: wordpress
-              labels:
-                app: wordpress
-            spec:
-              replicas: ${ReplicaCount}
-              selector:
-                matchLabels:
-                  app: wordpress
-                  tier: frontend
-              strategy:
-                type: Recreate
-              template:
-                metadata:
-                  labels:
-                    app: wordpress
-                    tier: frontend
-                spec:
-                  containers:
-                  - image: compute-nest-registry.cn-hangzhou.cr.aliyuncs.com/bestpractice/wordpress:6.2.1-apache
-                    name: wordpress
-                    resources:
-                      limits:
-                        cpu: ${Vcpu}
-                        memory: ${Memory}
-                      requests:
-                        cpu: ${Vcpu}
-                        memory: ${Memory}
-                    env:
-                    - name: WORDPRESS_DB_HOST
-                      value: wordpress-mysql
-                    - name: WORDPRESS_DB_PASSWORD
-                      valueFrom:
-                        secretKeyRef:
-                          name: mysql-pass
-                          key: password
-                    - name: WORDPRESS_DB_USER
-                      value: wordpress
-                    ports:
-                    - containerPort: 80
-                      name: wordpress
-            ---
-            apiVersion: networking.k8s.io/v1
-            kind: Ingress
-            metadata:
-              name: wordpress
-            spec:
-              rules:
-              - host: ${Name}.${ClusterId}.${RegionId}.alicontainer.com
-                http:
-                  paths:
-                  - path: /
-                    backend:
-                      service:
-                        name: wordpress
-                        port:
-                          number: 80
-                    pathType: ImplementationSpecific
-          - Name:
-              Ref: ALIYUN::StackName
-            RegionId:
-              Ref: ALIYUN::Region
-            ClusterId:
-              Ref: ClusterId
       ClusterId:
         Ref: ClusterId
-      DefaultNamespace:
-        Ref: ALIYUN::StackName
+      InstalledIgnore: true
+      Addons:
+        - Name: nginx-ingress-controller
+  WordpressComputenestHelmApplication:
+    DependsOn:
+      - ACKAddons
+    Type: MODULE::ACS::ComputeNest::FluxOciHelmDeploy
+    Version: default
+    Properties:
+      ClusterId:
+        Ref: ClusterId
+      HelmChartUrl: '{{ computenest::helmchart::wordpress }}'
+      ChartValues:
+        image:
+          registry: compute-nest-registry.cn-hangzhou.cr.aliyuncs.com
+          repository: bestpractice/wordpress
+          tag: 6.2.0
+        mariadb:
+          image:
+            registry: compute-nest-registry.cn-hangzhou.cr.aliyuncs.com
+            repository: bestpractice/mariadb
+            tag: 10.6.12
+          primary:
+            persistence:
+              enabled: true
+              storageClass: alicloud-disk-topology-alltype
+              size:
+                Ref: Storage
+        persistence:
+          enabled: false
+        resources:
+          requests:
+            cpu:
+              Ref: Vcpu
+            memory:
+              Ref: Memory
+          limits:
+            cpu:
+              Ref: Vcpu
+            memory:
+              Ref: Memory
+        ingress:
+          enabled: true
+          ingressClassName: nginx
+          hostname:
+            Fn::Sub:
+              - ${Namespace}.wordpress.local
+              - Namespace:
+                  Ref: ALIYUN::StackName
+        wordpressUsername:
+          Ref: WordpressUsername
+        wordpressPassword:
+          Ref: WordpressPassword
+      Namespace:
+        Ref: 'ALIYUN::StackName'
+      ReleaseName: wordpress
+  NginxIngressResources:
+    Type: DATASOURCE::CS::ClusterApplicationResources
+    DependsOn:
+      - WordpressComputenestHelmApplication
+    Properties:
+      Namespace: kube-system
+      Kind: Service
+      ApiVersion: v1
+      JsonPath: $.status.loadBalancer.ingress[0].ip
+      ClusterId:
+        Ref: ClusterId
+      Name: nginx-ingress-lb
 Outputs:
   # 将公网ip做为http返回的地址显示在控制台
   Endpoint:
@@ -233,13 +117,25 @@ Outputs:
       en: Public IP Addresses
     Value:
       Fn::Sub:
-        - http://${Name}.${ClusterId}.${RegionId}.alicontainer.com
-        - Name:
+        - http://${Namespace}.wordpress.local
+        - Namespace:
             Ref: ALIYUN::StackName
-          RegionId:
-            Ref: ALIYUN::Region
-          ClusterId:
-            Ref: ClusterId
+  请配置域名映射到hosts中:
+    Label: 请配置域名映射到hosts中
+    Value:
+      Fn::Sub:
+        - ${IpAddress} ${Address}
+        - IpAddress:
+            Fn::Select:
+              - 0
+              - Fn::GetAtt:
+                  - NginxIngressResources
+                  - Response
+          Address:
+            Fn::Sub:
+              - ${Namespace}.wordpress.local
+              - Namespace:
+                  Ref: ALIYUN::StackName
 Metadata:
   'ALIYUN::ROS::Interface':
     ParameterGroups:
@@ -254,3 +150,9 @@ Metadata:
           - ClusterId
         Label:
           en: 集群信息
+      - Parameters:
+          - WordpressUsername
+          - WordpressPassword
+        Label:
+          en: Wordpress Configuration
+          zh-cn: Wordpress账密配置
