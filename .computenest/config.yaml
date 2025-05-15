@@ -45,7 +45,7 @@ Service:
             - Name: 高配版
               Description: 高配版
               Parameters:
-                Vcpu: 1
+                Vcpu: '1'
                 Memory: 2Gi
                 Storage: 80Gi
                 ReplicaCount: 3
