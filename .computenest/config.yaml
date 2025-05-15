@@ -17,36 +17,50 @@ Service:
           Url: 'ros_templates/template.yaml'
           PredefinedParameters:
             - Name: 低配版
-              Description: 1c1g
+              Description: 低配版
               Parameters:
-                Vcpu: "1"
-                Memory: 1Gi
+                Vcpu: 300m
+                Memory: 512Mi
+                Storage: 20Gi
+                ReplicaCount: 1
               Type: Normal
               OrderList:
                 - Vcpu
                 - Memory
+                - Storage
+                - ReplicaCount
             - Name: 基础版
-              Description: 2c2g
+              Description: 基础版
               Parameters:
-                Vcpu: "2"
-                Memory: 2Gi
+                Vcpu: 600m
+                Memory: 1Gi
+                Storage: 40Gi
+                ReplicaCount: 2
               Type: Normal
               OrderList:
                 - Vcpu
                 - Memory
+                - Storage
+                - ReplicaCount
             - Name: 高配版
-              Description: 2c4g
+              Description: 高配版
               Parameters:
-                Vcpu: "2"
-                Memory: 4Gi
+                Vcpu: 1
+                Memory: 2Gi
+                Storage: 80Gi
+                ReplicaCount: 3
               Type: Normal
               OrderList:
                 - Vcpu
                 - Memory
+                - Storage
+                - ReplicaCount
           HiddenParameterKeys:
             - ClusterId
             - Vcpu
             - Memory
+            - Storage
+            - ReplicaCount
           ParameterMappings:
             - ParameterKey: RegionId
               ParameterMappingKeys:

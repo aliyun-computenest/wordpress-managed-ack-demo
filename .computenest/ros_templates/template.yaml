@@ -5,21 +5,10 @@ Parameters:
     AssociationProperty: ALIYUN::CS::Cluster::ClusterId
   Memory:
     Type: String
-    AllowedValues:
-      - 512Mi
-      - 1Gi
-      - 2Gi
   Vcpu:
     Type: String
-    AllowedValues:
-      - 300m
-      - 600m
   Storage:
     Type: String
-    AllowedValues:
-      - 20Gi
-      - 40Gi
-      - 80Gi
   ReplicaCount:
     Type: Number
     Default: 1
