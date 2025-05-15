@@ -1,7 +1,4 @@
 ROSTemplateFormatVersion: '2015-09-01'
-Description:
-  en: helm部署wordpress
-  zh-cn: helm部署wordpress
 Parameters:
   ClusterId:
     Type: String

@@ -1,7 +1,4 @@
 ROSTemplateFormatVersion: '2015-09-01'
-Description:
-  en: yaml部署wordpress
-  zh-cn: yaml部署wordpress
 Parameters:
   ClusterId:
     Type: String
