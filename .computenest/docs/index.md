@@ -2,15 +2,15 @@
 
 ## 服务说明
 
-本文介绍容器服务部署wordpress实现托管版多租户的流程，本示例对应的Git仓库地址：[wordpress-managed-ack-yaml-demo](https://github.com/aliyun-computenest/wordpress-managed-ack-demo)。
+本文介绍容器服务部署wordpress实现托管版多租户的流程，本示例对应的Git仓库地址：[wordpress-managed-ack-demo](https://github.com/aliyun-computenest/wordpress-managed-ack-demo)。
 
 根据该服务模板构建的服务默认包含三种套餐：
 
-| 套餐名  | vCPU与内存      | 
-|--------|----------------|
-| 低配版 | 1vCPU 1GiB |
-| 基础版 | 2vCPU 2GiB  |
-| 高配版 | 2vCPU 4GiB |
+| 套餐名  | 配置                              | 
+|--------|---------------------------------|
+| 低配版 | 300m vCPU 512Mi 内存 20Gi 存储 1 副本 |
+| 基础版 | 600m vCPU 1Gi   内存 40Gi 存储 2 副本 |
+| 高配版 | 1    vCPU 2Gi   内存 80Gi 存储 3 副本 |
 
 本示例需要提前准备容器集群，需要到[容器服务控制台](https://cs.console.aliyun.com/) 提前创建。
 本示例创建过程大约持续1分钟，当服务变成待提交后构建成功。
@@ -20,7 +20,8 @@
 本部署架构为容器多租户部署，架构如下图所示：
 1. 使用ingress根据域名路由到各个租户的wordpress
 2. 每个租户一个k8s namespace，用namespace隔离
-3. wordpress和mysql使用yaml部署
+3. wordpress和mysql使用Helm部署
+4. 这个示例中的域名采用了本地域名，需要用户手动添加本地域名和slb ip的映射。
 
 <img src="architecture.png" width="1500" height="700" align="bottom"/>
 
@@ -59,26 +60,10 @@
 4. 在用户侧进入待部署状态后需要服务商同意用户的部署。
     ![image.png](deploy_4.png)
     ![image.png](deploy_5.png)
-5. 等待部署完成后就可以开始使用服务，进入服务实例详情点击Endpoint。
+5. 等待部署完成后就可以开始使用服务，进入服务实例详情点击Endpoint。这里使用的是本地域名，需要在hosts中添加本地域名和slb的映射，然后使用这个域名访问服务。
     ![image.png](deploy_6.png)
 6. 部署结果
     ![image.png](deploy_7.png)
-
-
-## 服务实例变配流程
-   ![img_2.png](modify_1.png)
-   ![img.png](modify_2.png)
-
-服务实例创建完成后，用户侧有配置修改的需求，可以点击右上角的修改配置进行变配操作，本服务支持的变配操作有以下三种：
-1. 扩容磁盘，对wordpress中关联的mysql磁盘进行扩容,磁盘只能进行扩容操作，这里从20Gi扩容到40Gi。
-    ![img.png](modify_3.png)
-    ![img_2.png](modify_4.png)
-2. 更改套餐，这个可以对套餐规格进行变更，不同的套餐Pod可用的CPU和内存数量不同。
-    ![img_3.png](modify_5.png)
-    ![img_4.png](modify_6.png)
-3. 更改副本数，这个可以对wordpress副本数进行扩缩容操作。
-    ![img_5.png](modify_7.png)
-    ![img_6.png](modify_8.png)
 
 
 ## 售卖配置
@@ -105,217 +90,6 @@
     ![image.png](market_11.png)
     ![image.png](market_12.png)
 8. 至此完成了一个托管版上到云市场并使用的全过程。
-
-## 服务详细说明
-
-通过ALIYUN::CS::ClusterApplication部署yaml到k8s，并给每个租户的对应到不同namespace上。
-
-详细对应到template.yaml的代码片段如下所示：
-1. 部署wordpress + mysql。
-2. 部署ingress根据域名将endpoint对应到新创建的wordpress的service上。
-
-通过配置我们完成了基于容器集群的托管版部署。
-
-```yaml
-  ClusterApplication:
-    Type: ALIYUN::CS::ClusterApplication
-    Properties:
-      WaitUntil:
-        - Kind: Deployment
-          Name: wordpress
-          JsonPath: $.status.readyReplicas
-          Operator: Equals
-          Value:
-            Ref: ReplicaCount
-          Timeout: 300
-          ValueType: Json
-          FirstMatch: true
-        - Kind: Deployment
-          Name: wordpress-mysql
-          JsonPath: $.status.readyReplicas
-          Operator: Equals
-          Value: '1'
-          Timeout: 300
-          ValueType: Json
-          FirstMatch: true
-      YamlContent:
-        Fn::Sub:
-          - |
-            apiVersion: v1
-            kind: Secret
-            metadata:
-              name: mysql-pass
-            data:
-              password: bWFyaWFkYg==
-            ---
-            apiVersion: v1
-            kind: Service
-            metadata:
-              name: wordpress-mysql
-              labels:
-                app: wordpress
-            spec:
-              ports:
-                - port: 3306
-              selector:
-                app: wordpress
-                tier: mysql
-              clusterIP: None
-            ---
-            apiVersion: v1
-            kind: PersistentVolumeClaim
-            metadata:
-              name: mysql-pv-claim
-              labels:
-                app: wordpress
-            spec:
-              accessModes:
-                - ReadWriteOnce
-              storageClassName: alicloud-disk-essd
-              resources:
-                requests:
-                  storage: ${Storage}
-            ---
-            apiVersion: apps/v1
-            kind: Deployment
-            metadata:
-              name: wordpress-mysql
-              labels:
-                app: wordpress
-            spec:
-              selector:
-                matchLabels:
-                  app: wordpress
-                  tier: mysql
-              strategy:
-                type: Recreate
-              template:
-                metadata:
-                  labels:
-                    app: wordpress
-                    tier: mysql
-                spec:
-                  containers:
-                  - image: mysql:8.0
-                    name: mysql
-                    resources:
-                      limits:
-                        cpu: ${Vcpu}
-                        memory: ${Memory}
-                      requests:
-                        cpu: ${Vcpu}
-                        memory: ${Memory}
-                    env:
-                    - name: MYSQL_ROOT_PASSWORD
-                      valueFrom:
-                        secretKeyRef:
-                          name: mysql-pass
-                          key: password
-                    - name: MYSQL_DATABASE
-                      value: wordpress
-                    - name: MYSQL_USER
-                      value: wordpress
-                    - name: MYSQL_PASSWORD
-                      valueFrom:
-                        secretKeyRef:
-                          name: mysql-pass
-                          key: password
-                    ports:
-                    - containerPort: 3306
-                      name: mysql
-                    volumeMounts:
-                    - name: mysql-persistent-storage
-                      mountPath: /var/lib/mysql
-                  volumes:
-                  - name: mysql-persistent-storage
-                    persistentVolumeClaim:
-                      claimName: mysql-pv-claim
-            ---
-            apiVersion: v1
-            kind: Service
-            metadata:
-              name: wordpress
-              labels:
-                app: wordpress
-            spec:
-              ports:
-                - port: 80
-              selector:
-                app: wordpress
-                tier: frontend
-              type: ClusterIP
-            ---
-            apiVersion: apps/v1
-            kind: Deployment
-            metadata:
-              name: wordpress
-              labels:
-                app: wordpress
-            spec:
-              replicas: ${ReplicaCount}
-              selector:
-                matchLabels:
-                  app: wordpress
-                  tier: frontend
-              strategy:
-                type: Recreate
-              template:
-                metadata:
-                  labels:
-                    app: wordpress
-                    tier: frontend
-                spec:
-                  containers:
-                  - image: wordpress:6.2.1-apache
-                    name: wordpress
-                    resources:
-                      limits:
-                        cpu: ${Vcpu}
-                        memory: ${Memory}
-                      requests:
-                        cpu: ${Vcpu}
-                        memory: ${Memory}
-                    env:
-                    - name: WORDPRESS_DB_HOST
-                      value: wordpress-mysql
-                    - name: WORDPRESS_DB_PASSWORD
-                      valueFrom:
-                        secretKeyRef:
-                          name: mysql-pass
-                          key: password
-                    - name: WORDPRESS_DB_USER
-                      value: wordpress
-                    ports:
-                    - containerPort: 80
-                      name: wordpress
-            ---
-            apiVersion: networking.k8s.io/v1
-            kind: Ingress
-            metadata:
-              name: wordpress
-            spec:
-              rules:
-              - host: ${Name}.${ClusterId}.${RegionId}.alicontainer.com
-                http:
-                  paths:
-                  - path: /
-                    backend:
-                      service:
-                        name: wordpress
-                        port:
-                          number: 80
-                    pathType: ImplementationSpecific
-          - Name:
-              Ref: ALIYUN::StackName
-            RegionId:
-              Ref: ALIYUN::Region
-            ClusterId:
-              Ref: ClusterId
-      ClusterId:
-        Ref: ClusterId
-      DefaultNamespace:
-        Ref: ALIYUN::StackName
-```
 
 
 # 更多功能

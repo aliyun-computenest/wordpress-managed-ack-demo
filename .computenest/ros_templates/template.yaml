@@ -33,6 +33,15 @@ Resources:
       InstalledIgnore: true
       Addons:
         - Name: nginx-ingress-controller
+      WaitUntil:
+        - Kind: Service
+          Name: nginx-ingress-lb
+          Namespace: kube-system
+          JsonPath: '$.status.loadBalancer.ingress[0].ip'
+          Operator: NotEmpty
+          Timeout: 300
+          ValueType: Json
+          FirstMatch: true
   WordpressComputenestHelmApplication:
     DependsOn:
       - ACKAddons
