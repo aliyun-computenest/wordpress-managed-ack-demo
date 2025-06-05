@@ -8,8 +8,7 @@ Service:
     SupplierDeployMetadata:
       HelmChartArtifactRelation:
         '{{ computenest::helmchart::wordpress }}':
-          ArtifactId: ${Artifact.Artifact_1.ArtifactId}
-          ArtifactVersion: ${Artifact.Artifact_1.ArtifactVersion}
+          ArtifactId: artifact-45b453fa72fb43d2833b
       RoleName: ${RoleName}
       UserType: Aliyun
       SupplierTemplateConfigs:
@@ -82,15 +81,6 @@ Service:
     Name: Wordpress 容器yaml部署
   ShareType: Public
   ApprovalType: Manual
-Artifact:
-  Artifact_1:
-    ArtifactType: HelmChart
-    ArtifactName: HelmChart-Wordpress
-    Description: wordpress HelmChart部署物
-    ArtifactProperty:
-      RepoName: ${HelmChartBuilder.HelmChart_1.RepoName}
-      Tag: ${HelmChartBuilder.HelmChart_1.Tag}
-      RepoType: Public
 HelmChartBuilder:
   HelmChart_1:
     HelmChartPath: 'resources/artifact_resources/helm_chart/wordpress-15.4.1.tgz'
