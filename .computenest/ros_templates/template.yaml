@@ -45,7 +45,7 @@ Resources:
   WordpressComputenestHelmApplication:
     DependsOn:
       - ACKAddons
-    Type: MODULE::ACS::ComputeNest::FluxOciHelmDeploy
+    Type: MODULE::SHARE::1853370294850618::FluxOciHelmDeploy
     Version: default
     Properties:
       ClusterId:
